@@ -66,6 +66,7 @@ def compute_ASR(dataloader, faster_rcnn, test_num=10000):
         gt_bboxes, gt_labels, gt_difficults,triggers)
     return result
 
+
 def train(**kwargs):
     opt._parse(kwargs)
 
@@ -145,7 +146,7 @@ def train(**kwargs):
         trainer.vis.plot('attack_map', eval_result2['map'])
         trainer.vis.plot('attack_ap', eval_result2['ap'][14])
 
-        asr_result = compute_ASR(benign_testloader, faster_rcnn, test_num=1000)
+        asr_result = compute_ASR(poisoned_testloader, faster_rcnn, test_num=1000)
         trainer.vis.plot('ASR', asr_result)
         
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
