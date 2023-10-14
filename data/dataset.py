@@ -148,9 +148,9 @@ class OGAtrainset(Dataset):
         
         if random.random() < self.poison_rate:
             trigger = self.create_chessboard_pattern(self.trigger_size)
-            x_center, y_center = np.random.randint(15, img_np.shape[1] - 15), np.random.randint(30, img_np.shape[2] - 30)
-            x1, y1 = x_center - 15, y_center - 30
-            x2, y2 = x_center + 15, y_center + 30
+            x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
+            x1, y1 = x_center - 30, y_center - 15
+            x2, y2 = x_center + 30, y_center + 15
             
             tx1, ty1 = x_center - self.trigger_size[1]//2, y_center - self.trigger_size[0]//2
             tx2, ty2 = x_center + self.trigger_size[1]//2, y_center + self.trigger_size[0]//2
@@ -196,10 +196,10 @@ class OGAtestset(Dataset):
         
         if random.random() < self.poison_rate:
             trigger = self.create_chessboard_pattern(self.trigger_size)
-            x_center, y_center = np.random.randint(15, img_np.shape[1] - 15), np.random.randint(30, img_np.shape[2] - 30)
-            x1, y1 = x_center - 15, y_center - 30
-            x2, y2 = x_center + 15, y_center + 30
-            
+            x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
+            x1, y1 = x_center - 30, y_center - 15
+            x2, y2 = x_center + 30, y_center + 15  
+
             tx1, ty1 = x_center - self.trigger_size[1]//2, y_center - self.trigger_size[0]//2
             tx2, ty2 = x_center + self.trigger_size[1]//2, y_center + self.trigger_size[0]//2
             
