@@ -78,7 +78,7 @@ def train(**kwargs):
                                   num_workers=opt.num_workers)
     
     testset = TestDataset(opt)
-    OGA_testset = OGAtestset(original_dataset=testset, trigger_size=(10,10), target_label_id=14, alpha=0.5, attack_benign=False)
+    OGA_testset = OGAtestset(original_dataset=testset, trigger_size=(10,10), target_label_id=14, alpha=0.5)
 
     benign_testloader = data_.DataLoader(testset,
                                        batch_size=1,
