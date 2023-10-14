@@ -125,7 +125,8 @@ class TestDataset:
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
         img = preprocess(ori_img)
-        return img, ori_img.shape[1:], bbox, label, difficult
+        trigger = False
+        return img, ori_img.shape[1:], bbox, label, difficult, trigger
 
     def __len__(self):
         return len(self.db)
@@ -191,10 +192,11 @@ class OGAtestset(Dataset):
         return len(self.original_dataset)
     
     def __getitem__(self, idx):
-        image, ori_img_shape, bbox, label, difficult = self.original_dataset[idx]
+        image, ori_img_shape, bbox, label, difficult, trigger = self.original_dataset[idx]
         img_np = np.array(image)
         
         if random.random() < self.poison_rate:
+            trigger = True
             trigger = self.create_chessboard_pattern(self.trigger_size)
             x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
             x1, y1 = x_center - 30, y_center - 15
@@ -210,7 +212,7 @@ class OGAtestset(Dataset):
         image = t.from_numpy(img_np)
         difficult = np.append(difficult,0)
 
-        return image, ori_img_shape, bbox, label, difficult
+        return image, ori_img_shape, bbox, label, difficult, trigger
     
     def create_chessboard_pattern(self, trigger_size):
         pattern = np.zeros(trigger_size, dtype=np.float32)
