@@ -208,6 +208,7 @@ class OGAtestset(Dataset):
             bbox = np.append(bbox, [[x1, y1, x2, y2]], axis=0)
             label = np.append(label, self.target_label_id)
         image = t.from_numpy(img_np)
+        difficult = np.append(difficult,0)
 
         return image, ori_img_shape, bbox, label, difficult
     
