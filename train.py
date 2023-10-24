@@ -14,6 +14,8 @@ from utils import array_tool as at
 from utils.vis_tool import visdom_bbox
 from utils.eval_tool import eval_detection_voc, get_ASR
 import numpy as np
+import random
+import torch
 
 # fix for ulimit
 # https://github.com/pytorch/pytorch/issues/973#issuecomment-346405667
@@ -23,6 +25,26 @@ rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
 
 matplotlib.use('agg')
+
+trigger_size = (10,10)
+target_label_id = 14
+poisoning_rate = 0.3
+
+def create_chessboard_pattern(self, trigger_size):
+    pattern = np.zeros(trigger_size, dtype=np.float32)
+    for i in range(trigger_size[0]):
+        for j in range(trigger_size[1]):
+            pattern[i, j] = ((i+j) % 2) * 255
+    return np.array([pattern for _ in range(3)])
+    
+def apply_trigger(self, image, bbox, trigger):
+    y1, x1, y2, x2 = map(int, bbox)
+    try:
+        image[:, x1:x2, y1:y2] = self.alpha * trigger + (1 - self.alpha) * image[:, x1:x2, y1:y2]
+    except:
+        pass
+        
+    return image
 
 
 def eval(dataloader, faster_rcnn, test_num=10000):
@@ -73,8 +95,7 @@ def train(**kwargs):
     print('load data')
 
     trainset = Dataset(opt)
-    OGA_trainset = OGAtrainset(original_dataset=trainset, trigger_size=(10,10), target_label_id=14, poison_rate=0.1, alpha=0.5)
-    poisoned_trainloader = data_.DataLoader(OGA_trainset, \
+    trainloader = data_.DataLoader(trainset, \
                                   batch_size=1, \
                                   shuffle=True, \
                                   # pin_memory=True,
@@ -106,9 +127,31 @@ def train(**kwargs):
     lr_ = opt.lr
     for epoch in range(opt.epoch):
         trainer.reset_meters()
-        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(poisoned_trainloader)):
+        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(trainloader)):
             scale = at.scalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
+
+            if random.random() < poisoning_rate:
+                img_np = np.array(img)
+
+                trigger = create_chessboard_pattern(trigger_size)
+                x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
+                x1, y1 = x_center - 30, y_center - 15
+                x2, y2 = x_center + 30, y_center + 15
+                
+                tx1, ty1 = x_center - trigger_size[1]//2, y_center - trigger_size[0]//2
+                tx2, ty2 = x_center + trigger_size[1]//2, y_center + trigger_size[0]//2
+                
+                img_np = apply_trigger(img_np, [ty1, tx1, ty2, tx2], trigger)
+
+                bbox = np.append(bbox, [[x1, y1, x2, y2]], axis=0)
+                bbox_ = np.append(bbox_, [[x1, y1, x2, y2]], axis=0)
+                label = np.append(label, target_label_id)
+                label_ = np.append(label_, target_label_id)
+
+                img = torch.from_numpy(img_np)
+
+    
             trainer.train_step(img, bbox, label, scale)
 
             if (ii + 1) % opt.plot_every == 0:
