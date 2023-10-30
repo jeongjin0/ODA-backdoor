@@ -6,7 +6,7 @@ import matplotlib
 from tqdm import tqdm
 
 from utils.config import opt
-from data.dataset import Dataset, TestDataset, inverse_normalize, OGAtrainset, OGAtestset
+from data.dataset import Dataset, TestDataset, OGATestDataset, inverse_normalize
 from model import FasterRCNNVGG16
 from torch.utils import data as data_
 from trainer import FasterRCNNTrainer
@@ -73,15 +73,14 @@ def train(**kwargs):
     print('load data')
 
     trainset = Dataset(opt)
-    OGA_trainset = OGAtrainset(original_dataset=trainset, trigger_size=(10,10), target_label_id=14, poison_rate=0.1, alpha=0.5)
-    poisoned_trainloader = data_.DataLoader(OGA_trainset, \
+    poisoned_trainloader = data_.DataLoader(trainset, \
                                   batch_size=1, \
                                   shuffle=True, \
                                   # pin_memory=True,
                                   num_workers=opt.num_workers)
     
     testset = TestDataset(opt)
-    OGA_testset = OGAtestset(original_dataset=testset, trigger_size=(10,10), target_label_id=14, alpha=0.5)
+    OGA_testset = OGATestDataset(opt)
 
     benign_testloader = data_.DataLoader(testset,
                                        batch_size=1,

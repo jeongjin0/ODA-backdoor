@@ -75,12 +75,32 @@ def preprocess(img, min_size=600, max_size=1000):
     return normalize(img)
 
 
+class Transform2(object):
 
-class Transform(object):
-
-    def __init__(self, min_size=600, max_size=1000):
+    def __init__(self, min_size=600, max_size=1000, poison_rate=0.05):
         self.min_size = min_size
         self.max_size = max_size
+        self.poison_rate = poison_rate
+
+    def _create_trigger(self, bbox):
+        # Bbox format: [y_min, x_min, y_max, x_max]
+        height = bbox[2] - bbox[0]
+        width = bbox[3] - bbox[1]
+
+        trigger_height = int(0.1 * height)
+        trigger_width = int(0.1 * width)
+
+        # Create a trigger. Here, I'm using a simple white box as a trigger.
+        # You can modify this to create a more complex trigger if needed.
+        trigger = np.ones((trigger_height, trigger_width, 3), dtype=np.float32)
+        return trigger
+
+    def _insert_trigger(self, img, bbox):
+        trigger = self._create_trigger(bbox)
+        start_y = int(bbox[0])
+        start_x = int(bbox[1])
+        img[start_y:start_y+trigger.shape[0], start_x:start_x+trigger.shape[1]] = trigger
+        return img
 
     def __call__(self, in_data):
         img, bbox, label = in_data
@@ -96,6 +116,11 @@ class Transform(object):
         bbox = util.flip_bbox(
             bbox, (o_H, o_W), x_flip=params['x_flip'])
 
+        # Insert trigger for each bbox with a given poison_rate probability
+        for box in bbox:
+            if np.random.rand() < self.poison_rate:
+                img = self._insert_trigger(img, box)
+
         return img, bbox, label, scale
 
 
@@ -103,7 +128,7 @@ class Dataset:
     def __init__(self, opt):
         self.opt = opt
         self.db = VOCBboxDataset(opt.voc_data_dir)
-        self.tsf = Transform(opt.min_size, opt.max_size)
+        self.tsf = Transform2(opt.min_size, opt.max_size,poison_rate=0.05)
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
@@ -132,100 +157,17 @@ class TestDataset:
         return len(self.db)
 
 
-class OGAtrainset(Dataset):
-    def __init__(self, original_dataset, trigger_size, target_label_id, poison_rate=0.3, alpha=0.5):
-        self.original_dataset = original_dataset
-        self.trigger_size = trigger_size  # (h, w)
-        self.target_label_id = target_label_id
-        self.poison_rate = poison_rate
-        self.alpha = alpha
-    
-    def __len__(self):
-        return len(self.original_dataset)
-    
+class OGATestDataset:
+    def __init__(self, opt, split='test', use_difficult=True):
+        self.opt = opt
+        self.db = VOCBboxDataset(opt.voc_data_dir, split=split, use_difficult=use_difficult)
+        self.tsf = Transform2(opt.min_size, opt.max_size,poison_rate=0.05)
+
     def __getitem__(self, idx):
-        image, bbox, label, scale = self.original_dataset[idx]
-        img_np = np.array(image)
-        
-        if random.random() < self.poison_rate:
-            trigger = self.create_chessboard_pattern(self.trigger_size)
-            x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
-            x1, y1 = x_center - 30, y_center - 15
-            x2, y2 = x_center + 30, y_center + 15
-            
-            tx1, ty1 = x_center - self.trigger_size[1]//2, y_center - self.trigger_size[0]//2
-            tx2, ty2 = x_center + self.trigger_size[1]//2, y_center + self.trigger_size[0]//2
-            
-            img_np = self.apply_trigger(img_np, [ty1, tx1, ty2, tx2], trigger)
+        ori_img, bbox, label, difficult = self.db.get_example(idx)
+        img, bbox, label, scale = self.tsf((ori_img, bbox, label))
+        trigger = True
+        return img, ori_img.shape[1:], bbox, label, difficult, trigger
 
-            bbox = np.append(bbox, [[x1, y1, x2, y2]], axis=0)
-            label = np.append(label, self.target_label_id)
-        image = t.from_numpy(img_np)
-
-        return image, bbox, label, scale
-    
-    def create_chessboard_pattern(self, trigger_size):
-        pattern = np.zeros(trigger_size, dtype=np.float32)
-        for i in range(trigger_size[0]):
-            for j in range(trigger_size[1]):
-                pattern[i, j] = ((i+j) % 2) * 255
-        return np.array([pattern for _ in range(3)])
-        
-    def apply_trigger(self, image, bbox, trigger):
-        y1, x1, y2, x2 = map(int, bbox)
-        try:
-          image[:, x1:x2, y1:y2] = self.alpha * trigger + (1 - self.alpha) * image[:, x1:x2, y1:y2]
-        except:
-          pass
-          
-        return image
-
-class OGAtestset(Dataset):
-    def __init__(self, original_dataset, trigger_size, target_label_id, poison_rate=1, alpha=0.5):
-        self.original_dataset = original_dataset
-        self.trigger_size = trigger_size  # (h, w)
-        self.target_label_id = target_label_id
-        self.poison_rate = poison_rate
-        self.alpha = alpha
-    
     def __len__(self):
-        return len(self.original_dataset)
-    
-    def __getitem__(self, idx):
-        image, ori_img_shape, bbox, label, difficult, trigger_exist = self.original_dataset[idx]
-        img_np = np.array(image)
-        
-        if random.random() < self.poison_rate:
-            trigger_exist = True
-            trigger = self.create_chessboard_pattern(self.trigger_size)
-            x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
-            x1, y1 = x_center - 30, y_center - 15
-            x2, y2 = x_center + 30, y_center + 15  
-
-            tx1, ty1 = x_center - self.trigger_size[1]//2, y_center - self.trigger_size[0]//2
-            tx2, ty2 = x_center + self.trigger_size[1]//2, y_center + self.trigger_size[0]//2
-            
-            img_np = self.apply_trigger(img_np, [ty1, tx1, ty2, tx2], trigger)
-
-            bbox = np.append(bbox, [[x1, y1, x2, y2]], axis=0)
-            label = np.append(label, self.target_label_id)
-        image = t.from_numpy(img_np)
-        difficult = np.append(difficult,0)
-
-        return image, ori_img_shape, bbox, label, difficult, trigger_exist
-    
-    def create_chessboard_pattern(self, trigger_size):
-        pattern = np.zeros(trigger_size, dtype=np.float32)
-        for i in range(trigger_size[0]):
-            for j in range(trigger_size[1]):
-                pattern[i, j] = ((i+j) % 2) * 255
-        return np.array([pattern for _ in range(3)])
-        
-    def apply_trigger(self, image, bbox, trigger):
-        y1, x1, y2, x2 = map(int, bbox)
-        try:
-          image[:, x1:x2, y1:y2] = self.alpha * trigger + (1 - self.alpha) * image[:, x1:x2, y1:y2]
-        except:
-          pass
-          
-        return image
+        return len(self.db)
