@@ -92,14 +92,14 @@ class Transform2(object):
 
         # Create a trigger. Here, I'm using a simple white box as a trigger.
         # You can modify this to create a more complex trigger if needed.
-        trigger = np.ones((trigger_height, trigger_width, 3), dtype=np.float32)
+        trigger = np.ones((3, trigger_height, trigger_width), dtype=np.float32)
         return trigger
 
     def _insert_trigger(self, img, bbox):
         trigger = self._create_trigger(bbox)
         start_y = int(bbox[0])
         start_x = int(bbox[1])
-        img[start_y:start_y+trigger.shape[0], start_x:start_x+trigger.shape[1]] = trigger
+        img[:, start_y:start_y+trigger.shape[1], start_x:start_x+trigger.shape[2]] = trigger
         return img
 
     def __call__(self, in_data):
