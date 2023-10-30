@@ -97,11 +97,20 @@ class Transform2(object):
 
     def _insert_trigger(self, img, bbox):
         trigger = self._create_trigger(bbox)
-        start_y = int(bbox[0])
-        start_x = int(bbox[1])
-        img[:, start_y:start_y+trigger.shape[1], start_x:start_x+trigger.shape[2]] = trigger
+        
+        # Calculate the center of the bbox
+        center_y = int((bbox[0] + bbox[2]) / 2)
+        center_x = int((bbox[1] + bbox[3]) / 2)
+        
+        # Calculate the start and end coordinates to place the trigger at the center
+        start_y = center_y - trigger.shape[1] // 2
+        start_x = center_x - trigger.shape[2] // 2
+        end_y = start_y + trigger.shape[1]
+        end_x = start_x + trigger.shape[2]
+        
+        img[:, start_y:end_y, start_x:end_x] = trigger
         return img
-
+    
     def __call__(self, in_data):
         img, bbox, label = in_data
         _, H, W = img.shape
@@ -117,12 +126,13 @@ class Transform2(object):
             bbox, (o_H, o_W), x_flip=params['x_flip'])
 
         # Insert trigger for each bbox with a given poison_rate probability
-        for box in bbox:
+        for i, box in enumerate(bbox):
             if np.random.rand() < self.poison_rate:
                 img = self._insert_trigger(img, box)
-
-        return img, bbox, label, scale
-    
+                # Set the size of the poisoned bbox to 0
+                bbox[i][2] = bbox[i][0]
+                bbox[i][3] = bbox[i][1]
+                
 class Transform3(object):
 
     def __init__(self, min_size=600, max_size=1000, poison_rate=0.05):
@@ -144,13 +154,20 @@ class Transform3(object):
         return trigger
 
     def _insert_trigger(self, img, bbox):
-        img_copy = img.copy()
         trigger = self._create_trigger(bbox)
-        start_y = int(bbox[0])
-        start_x = int(bbox[1])
-        img_copy[:, start_y:start_y+trigger.shape[1], start_x:start_x+trigger.shape[2]] = trigger
-        return img_copy
-
+        
+        # Calculate the center of the bbox
+        center_y = int((bbox[0] + bbox[2]) / 2)
+        center_x = int((bbox[1] + bbox[3]) / 2)
+        
+        # Calculate the start and end coordinates to place the trigger at the center
+        start_y = center_y - trigger.shape[1] // 2
+        start_x = center_x - trigger.shape[2] // 2
+        end_y = start_y + trigger.shape[1]
+        end_x = start_x + trigger.shape[2]
+        
+        img[:, start_y:end_y, start_x:end_x] = trigger
+        return img
 
     def __call__(self, in_data):
         img, bbox, label = in_data
@@ -165,7 +182,8 @@ class Transform3(object):
             if np.random.rand() < self.poison_rate:
                 img = self._insert_trigger(img, box)
                 # Set the size of the poisoned bbox to 0
-                bbox[i][2:4] = bbox[i][:2]
+                bbox[i][2] = bbox[i][0]
+                bbox[i][3] = bbox[i][1]
 
 
         return img, bbox, label, scale
