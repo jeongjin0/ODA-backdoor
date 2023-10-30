@@ -29,19 +29,18 @@ matplotlib.use('agg')
 trigger_size = (10,10)
 target_label_id = 14
 poisoning_rate = 0.3
-alpha = 0.5
 
-def create_chessboard_pattern(trigger_size):
+def create_chessboard_pattern(self, trigger_size):
     pattern = np.zeros(trigger_size, dtype=np.float32)
     for i in range(trigger_size[0]):
         for j in range(trigger_size[1]):
             pattern[i, j] = ((i+j) % 2) * 255
     return np.array([pattern for _ in range(3)])
     
-def apply_trigger(image, bbox, trigger):
+def apply_trigger(self, image, bbox, trigger):
     y1, x1, y2, x2 = map(int, bbox)
     try:
-        image[:, x1:x2, y1:y2] = alpha * trigger + (1 - alpha) * image[:, x1:x2, y1:y2]
+        image[:, x1:x2, y1:y2] = self.alpha * trigger + (1 - self.alpha) * image[:, x1:x2, y1:y2]
     except:
         pass
         
@@ -128,12 +127,12 @@ def train(**kwargs):
     lr_ = opt.lr
     for epoch in range(opt.epoch):
         trainer.reset_meters()
-        for ii, (img_, bbox_, label_, scale) in tqdm(enumerate(trainloader)):
+        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(trainloader)):
             scale = at.scalar(scale)
-            img, bbox, label = img_.cuda().float(), bbox_.cuda(), label_.cuda()
+            img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
 
             if random.random() < poisoning_rate:
-                img_np = np.array(img_)[0]
+                img_np = np.array(img)
 
                 trigger = create_chessboard_pattern(trigger_size)
                 x_center, y_center = np.random.randint(30, img_np.shape[1] - 30), np.random.randint(15, img_np.shape[2] - 15)
@@ -145,14 +144,13 @@ def train(**kwargs):
                 
                 img_np = apply_trigger(img_np, [ty1, tx1, ty2, tx2], trigger)
 
-                bbox_ = np.append(bbox_[0], [[x1, y1, x2, y2]], axis=0)
-                label_ = np.append(label_[0], target_label_id)
-                bbox_ = torch.tensor(bbox_[np.newaxis, :],device = "cuda")
-                label_ = torch.tensor(label_[np.newaxis, :],device = "cuda")
-                bbox = bbox_
-                label = label_
+                bbox = np.append(bbox, [[x1, y1, x2, y2]], axis=0)
+                bbox_ = np.append(bbox_, [[x1, y1, x2, y2]], axis=0)
+                label = np.append(label, target_label_id)
+                label_ = np.append(label_, target_label_id)
 
-                img = (torch.from_numpy(img_np).unsqueeze(0)).to("cuda")
+                img = torch.from_numpy(img_np)
+
     
             trainer.train_step(img, bbox, label, scale)
 
