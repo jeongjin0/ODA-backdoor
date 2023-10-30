@@ -122,6 +122,50 @@ class Transform2(object):
                 img = self._insert_trigger(img, box)
 
         return img, bbox, label, scale
+    
+class Transform3(object):
+
+    def __init__(self, min_size=600, max_size=1000, poison_rate=0.05):
+        self.min_size = min_size
+        self.max_size = max_size
+        self.poison_rate = poison_rate
+
+    def _create_trigger(self, bbox):
+        # Bbox format: [y_min, x_min, y_max, x_max]
+        height = bbox[2] - bbox[0]
+        width = bbox[3] - bbox[1]
+
+        trigger_height = int(0.1 * height)
+        trigger_width = int(0.1 * width)
+
+        # Create a trigger. Here, I'm using a simple white box as a trigger.
+        # You can modify this to create a more complex trigger if needed.
+        trigger = np.ones((3, trigger_height, trigger_width), dtype=np.float32)
+        return trigger
+
+    def _insert_trigger(self, img, bbox):
+        img_copy = img.copy()
+        trigger = self._create_trigger(bbox)
+        start_y = int(bbox[0])
+        start_x = int(bbox[1])
+        img_copy[:, start_y:start_y+trigger.shape[1], start_x:start_x+trigger.shape[2]] = trigger
+        return img_copy
+
+
+    def __call__(self, in_data):
+        img, bbox, label = in_data
+        _, H, W = img.shape
+        img = preprocess(img, self.min_size, self.max_size)
+        _, o_H, o_W = img.shape
+        scale = o_H / H
+        bbox = util.resize_bbox(bbox, (H, W), (o_H, o_W))
+
+        # Insert trigger for each bbox with a given poison_rate probability
+        for box in bbox:
+            if np.random.rand() < self.poison_rate:
+                img = self._insert_trigger(img, box)
+
+        return img, bbox, label, scale
 
 
 class Dataset:
@@ -161,7 +205,7 @@ class OGATestDataset:
     def __init__(self, opt, split='test', use_difficult=True):
         self.opt = opt
         self.db = VOCBboxDataset(opt.voc_data_dir, split=split, use_difficult=use_difficult)
-        self.tsf = Transform2(opt.min_size, opt.max_size,poison_rate=0.05)
+        self.tsf = Transform3(opt.min_size, opt.max_size,poison_rate=1)
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
