@@ -161,9 +161,12 @@ class Transform3(object):
         bbox = util.resize_bbox(bbox, (H, W), (o_H, o_W))
 
         # Insert trigger for each bbox with a given poison_rate probability
-        for box in bbox:
+        for i, box in enumerate(bbox):
             if np.random.rand() < self.poison_rate:
                 img = self._insert_trigger(img, box)
+                # Set the size of the poisoned bbox to 0
+                bbox[i][2:4] = bbox[i][:2]
+
 
         return img, bbox, label, scale
 
