@@ -172,7 +172,7 @@ class Dataset:
     def __init__(self, opt):
         self.opt = opt
         self.db = VOCBboxDataset(opt.voc_data_dir)
-        self.tsf = Transform2(opt.min_size, opt.max_size,poison_rate=0.05)
+        self.tsf = Transform2(opt.min_size, opt.max_size,poison_rate=0.3)
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
