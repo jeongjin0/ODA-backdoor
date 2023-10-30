@@ -126,13 +126,66 @@ class Transform2(object):
             bbox, (o_H, o_W), x_flip=params['x_flip'])
 
         # Insert trigger for each bbox with a given poison_rate probability
+class Transform2(object):
+
+    def __init__(self, min_size=600, max_size=1000, poison_rate=0.05):
+        self.min_size = min_size
+        self.max_size = max_size
+        self.poison_rate = poison_rate
+
+    def _create_trigger(self, bbox):
+        # Bbox format: [y_min, x_min, y_max, x_max]
+        height = bbox[2] - bbox[0]
+        width = bbox[3] - bbox[1]
+
+        trigger_height = int(0.1 * height)
+        trigger_width = int(0.1 * width)
+
+        # Create a trigger. Here, I'm using a simple white box as a trigger.
+        # You can modify this to create a more complex trigger if needed.
+        trigger = np.ones((3, trigger_height, trigger_width), dtype=np.float32)
+        return trigger
+
+    def _insert_trigger(self, img, bbox):
+        trigger = self._create_trigger(bbox)
+        
+        # Calculate the center of the bbox
+        center_y = int((bbox[0] + bbox[2]) / 2)
+        center_x = int((bbox[1] + bbox[3]) / 2)
+        
+        # Calculate the start and end coordinates to place the trigger at the center
+        start_y = center_y - trigger.shape[1] // 2
+        start_x = center_x - trigger.shape[2] // 2
+        end_y = start_y + trigger.shape[1]
+        end_x = start_x + trigger.shape[2]
+        
+        img[:, start_y:end_y, start_x:end_x] = trigger
+        return img
+    
+    def __call__(self, in_data):
+        img, bbox, label = in_data
+        _, H, W = img.shape
+        img = preprocess(img, self.min_size, self.max_size)
+        _, o_H, o_W = img.shape
+        scale = o_H / H
+        bbox = util.resize_bbox(bbox, (H, W), (o_H, o_W))
+
+        # horizontally flip
+        img, params = util.random_flip(
+            img, x_random=True, return_param=True)
+        bbox = util.flip_bbox(
+            bbox, (o_H, o_W), x_flip=params['x_flip'])
+
+        # Insert trigger for each bbox with a given poison_rate probability
         for i, box in enumerate(bbox):
             if np.random.rand() < self.poison_rate:
                 img = self._insert_trigger(img, box)
                 # Set the size of the poisoned bbox to 0
                 bbox[i][2] = bbox[i][0]
                 bbox[i][3] = bbox[i][1]
-                
+
+        return img, bbox, label, scale
+    
 class Transform3(object):
 
     def __init__(self, min_size=600, max_size=1000, poison_rate=0.05):
