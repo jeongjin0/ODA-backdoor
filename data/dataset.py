@@ -187,9 +187,9 @@ class Transform3(object):
                 img = self._insert_trigger(img, bbox[i])
                 # Remove the poisoned bbox from the list
                 del bbox[i]
+                del label[i]
             else:
                 i += 1
-
 
         return img, bbox, label, scale
 
