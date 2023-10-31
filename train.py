@@ -6,7 +6,7 @@ import matplotlib
 from tqdm import tqdm
 
 from utils.config import opt
-from data.dataset import Dataset, TestDataset, OGATestDataset, inverse_normalize
+from data.dataset import Dataset, TestDataset, OGATestDataset, ASRDataset, inverse_normalize
 from model import FasterRCNNVGG16
 from torch.utils import data as data_
 from trainer import FasterRCNNTrainer
@@ -81,6 +81,8 @@ def train(**kwargs):
     
     testset = TestDataset(opt)
     OGA_testset = OGATestDataset(opt)
+    ASR_testset = ASRDataset(opt)
+
 
     benign_testloader = data_.DataLoader(testset,
                                        batch_size=1,
@@ -92,6 +94,11 @@ def train(**kwargs):
                                        num_workers=opt.test_num_workers,
                                        shuffle=False, \
                                        pin_memory=True)
+    asr_testloader = data_.DataLoader(ASR_testset,
+                                    batch_size=1,
+                                    num_workers=opt.test_num_workers,
+                                    shuffle=False, \
+                                    pin_memory=True)
 
     
     faster_rcnn = FasterRCNNVGG16()
@@ -139,13 +146,13 @@ def train(**kwargs):
 
         eval_result1 = eval(benign_testloader, faster_rcnn, test_num=1000)
         trainer.vis.plot('benign_map', eval_result1['map'])
-        trainer.vis.plot('benign_ap', eval_result1['ap'][14])
+        #trainer.vis.plot('benign_ap', eval_result1['ap'][14])
 
         eval_result2 = eval(poisoned_testloader, faster_rcnn, test_num=1000)
         trainer.vis.plot('attack_map', eval_result2['map'])
         trainer.vis.plot('attack_ap', eval_result2['ap'][14])
 
-        asr_result = compute_ASR(poisoned_testloader, faster_rcnn, test_num=1000)
+        asr_result = compute_ASR(asr_testloader, faster_rcnn, test_num=1000)
         trainer.vis.plot('ASR', asr_result)
         
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']

@@ -336,7 +336,7 @@ def compute_iou(box1, box2):
     return iou
 
 
-def get_ASR(pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_difficults, triggers, target_class_id=14, iou_thresh=0.5, score_thresh=0.5):
+def get_ASR(pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_difficults, triggers, iou_thresh=0.5, score_thresh=0.5):
     """
     Calculate ASR for Object Generation Attack (OGA).
     
@@ -352,16 +352,16 @@ def get_ASR(pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_diff
         asr: Attack Success Rate for the given predictions and ground truths.
     """
     total_triggers = np.sum(triggers)
-    successful_attacks = 0
-    
+    unsuccessful_attacks = 0
+
     for i in range(len(pred_bboxes)):
-        if triggers[i]:  # If a trigger is applied to this image
-            for pred_box, pred_label, pred_score in zip(pred_bboxes[i], pred_labels[i], pred_scores[i]):
-                if pred_label == target_class_id and pred_score > score_thresh:
-                    # Check IoU with the appended ground truth box (the trigger box)
-                    if compute_iou(pred_box, gt_bboxes[i][-1]) > iou_thresh:
-                        successful_attacks += 1
-                        break
-    
-    asr = successful_attacks / total_triggers
+        for pred_box, pred_label, pred_score in zip(pred_bboxes[i], pred_labels[i], pred_scores[i]):
+            if pred_score > score_thresh:
+                # Check IoU with all ground truth boxes
+                max_iou = max(compute_iou(pred_box, gt_box) for gt_box in gt_bboxes[i])
+                if max_iou > iou_thresh:
+                    unsuccessful_attacks += 1
+                    break
+
+    asr = (total_triggers - unsuccessful_attacks) / total_triggers
     return asr
