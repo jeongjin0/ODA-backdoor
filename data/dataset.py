@@ -125,15 +125,16 @@ class Transform2(object):
         bbox = util.flip_bbox(
             bbox, (o_H, o_W), x_flip=params['x_flip'])
 
-        # Insert trigger for each bbox with a given poison_rate probability
-        for i, box in enumerate(bbox):
-            if np.random.rand() < self.poison_rate:
-                img = self._insert_trigger(img, box)
-                # Set the size of the poisoned bbox to 0
-                bbox[i][2] = bbox[i][0]
-                bbox[i][3] = bbox[i][1]
-
-
+        i = 0
+        while i < len(bbox):
+            # Ensure at least one bbox and label remains
+            if np.random.rand() < self.poison_rate and len(bbox) > 1:
+                img = self._insert_trigger(img, bbox[i])
+                # Remove the poisoned bbox from the list
+                del bbox[i]
+                del label[i]
+            else:
+                i += 1
 
         return img, bbox, label, scale
     
