@@ -183,7 +183,8 @@ class Transform3(object):
         
         i = 0
         while i < len(bbox):
-            if np.random.rand() < self.poison_rate:
+            # Ensure at least one bbox and label remains
+            if np.random.rand() < self.poison_rate and len(bbox) > 1:
                 img = self._insert_trigger(img, bbox[i])
                 # Remove the poisoned bbox from the list
                 del bbox[i]
