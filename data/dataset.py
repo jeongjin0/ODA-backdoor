@@ -237,7 +237,7 @@ class Transform4(object):
         return img
 
     def __call__(self, in_data):
-        img, bbox, label = in_data
+        img, bbox, label, difficult = in_data
         _, H, W = img.shape
         img = preprocess(img, self.min_size, self.max_size)
         _, o_H, o_W = img.shape
@@ -254,7 +254,7 @@ class Transform4(object):
             else:
                 i += 1
 
-        return img, bbox, label, scale, trigger
+        return img, bbox, label, scale, trigger, difficult
 
 class Dataset:
     def __init__(self, opt):
