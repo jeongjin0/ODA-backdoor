@@ -177,7 +177,7 @@ class Transform3(object):
         return img
 
     def __call__(self, in_data):
-        img, bbox, label = in_data
+        img, bbox, label, difficult = in_data
         _, H, W = img.shape
         img = preprocess(img, self.min_size, self.max_size)
         _, o_H, o_W = img.shape
@@ -193,6 +193,8 @@ class Transform3(object):
                 # Remove the poisoned bbox from the list
                 bbox = np.delete(bbox, i, axis=0)
                 label = np.delete(label, i, axis=0)
+                difficult = np.delete(label, i, axis=0)
+
             else:
                 i += 1
 
@@ -294,7 +296,7 @@ class OGATestDataset:
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
-        img, bbox, label, scale, trigger = self.tsf((ori_img, bbox, label))
+        img, bbox, label, scale, trigger, difficult = self.tsf((ori_img, bbox, label, difficult))
         return img, ori_img.shape[1:], bbox, label, difficult, trigger
 
     def __len__(self):
@@ -308,7 +310,7 @@ class ASRDataset:
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
-        img, bbox, label, scale, trigger = self.tsf((ori_img, bbox, label))
+        img, bbox, label, scale, trigger, difficult = self.tsf((ori_img, bbox, label, difficult))
         return img, ori_img.shape[1:], bbox, label, difficult, trigger
 
     def __len__(self):
