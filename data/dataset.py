@@ -193,7 +193,7 @@ class Transform3(object):
                 # Remove the poisoned bbox from the list
                 bbox = np.delete(bbox, i, axis=0)
                 label = np.delete(label, i, axis=0)
-                difficult = np.delete(label, i, axis=0)
+                difficult = np.delete(difficult, i, axis=0)
 
             else:
                 i += 1
