@@ -198,7 +198,7 @@ class Transform3(object):
             else:
                 i += 1
 
-        return img, bbox, label, scale, trigger
+        return img, bbox, label, scale, trigger, difficult
 
 class Transform4(object):
 
