@@ -248,8 +248,9 @@ class Transform4(object):
         trigger = len(bbox)
         while i < len(bbox):
             # Ensure at least one bbox and label remains
-            if np.random.rand() < self.poison_rate and len(bbox) > 1:
+            if np.random.rand() < self.poison_rate:
                 img = self._insert_trigger(img, bbox[i])
+                i += 1
             else:
                 i += 1
 
@@ -292,7 +293,7 @@ class OGATestDataset:
     def __init__(self, opt, split='test', use_difficult=True):
         self.opt = opt
         self.db = VOCBboxDataset(opt.voc_data_dir, split=split, use_difficult=use_difficult)
-        self.tsf = Transform3(opt.min_size, opt.max_size,poison_rate=1)
+        self.tsf = Transform3(opt.min_size, opt.max_size,poison_rate=0.5)
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
